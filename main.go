@@ -1,12 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
 	"os/exec"
+
+	"github.com/go-flac/flacpicture"
+	"github.com/go-flac/go-flac"
 )
 
 const TIMER = 2
@@ -31,9 +35,58 @@ func main() {
 		title = "Unknown"
 	}
 
+	filepath, err := getAttribute(remoteResp, "file ")
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	img := make([]byte, 0)
+	if strings.HasSuffix(filepath, ".flac") {
+		img, err = getFlacArt(filepath)
+		if err != nil {
+			img = defaultArt()
+		}
+	} else if strings.HasSuffix(filepath, ".mp3") {
+		getMP3Art()
+	} else {
+		defaultArt()
+	}
+
 	writeTxt("SongAlbum", album)
 	writeTxt("SongArtist", artist)
 	writeTxt("SongTitle", title)
+	writeJpg("AlbumArt", img)
+}
+
+func getFlacArt(s string) ([]byte, error) {
+	f, err := flac.ParseFile(s)
+	if err != nil {
+		return nil, errors.New("can't open file")
+	}
+	for _, metadata := range f.Meta {
+		if metadata.Type == flac.Picture {
+			pic, err := flacpicture.ParseFromMetaDataBlock(*metadata)
+			return pic.ImageData, err
+		}
+	}
+	return nil, errors.New("no image found")
+}
+
+func getMP3Art() {
+
+}
+
+func defaultArt() []byte {
+	return nil
+}
+
+func writeJpg(filename string, input []byte) {
+	f, err := os.Create("./output/" + filename + ".jpg")
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer f.Close()
+
+	f.Write(input)
 }
 
 func writeTxt(filename, input string) {
