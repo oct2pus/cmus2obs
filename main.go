@@ -19,7 +19,6 @@ import (
 
 	_ "image/gif"
 	"image/jpeg"
-	_ "image/jpeg"
 	_ "image/png"
 )
 
@@ -29,62 +28,69 @@ const (
 )
 
 func main() {
+	prevFilepath := ""
 	for {
 		c := exec.Command("cmus-remote", "-Q")
 		o, _ := c.Output()
 		remoteResp := strings.Split(string(o), "\n")
-		//Album
-		album, err := getAttribute(remoteResp, "tag album ")
-		if err != nil {
-			album = "Unknown"
-		}
-		//artist
-		artist, err := getAttribute(remoteResp, "tag artist ")
-		if err != nil {
-			artist = "Unknown"
-		}
-		// Title
-		title, err := getAttribute(remoteResp, "tag title ")
-		if err != nil {
-			title = "Unknown"
-		}
 
 		filepath, err := getAttribute(remoteResp, "file ")
 		if err != nil {
 			log.Fatal(err.Error())
 		}
 
-		img := make([]byte, 0)
-		if strings.HasSuffix(filepath, ".flac") {
-			img, err = getFlacArt(filepath)
+		if filepath != prevFilepath {
+			//Album
+			album, err := getAttribute(remoteResp, "tag album ")
 			if err != nil {
+				album = "Unknown"
+			}
+			//artist
+			artist, err := getAttribute(remoteResp, "tag artist ")
+			if err != nil {
+				artist = "Unknown"
+			}
+			// Title
+			title, err := getAttribute(remoteResp, "tag title ")
+			if err != nil {
+				title = "Unknown"
+			}
+
+			// Image
+			img := make([]byte, 0)
+			if strings.HasSuffix(filepath, ".flac") {
+				img, err = getFlacArt(filepath)
+				if err != nil {
+					img = defaultArt()
+				}
+			} else if strings.HasSuffix(filepath, ".mp3") {
+				img, err = getMP3Art(filepath)
+				if err != nil {
+					img = defaultArt()
+				}
+			} else {
 				img = defaultArt()
 			}
-		} else if strings.HasSuffix(filepath, ".mp3") {
-			img, err = getMP3Art(filepath)
+
+			imgBuff := bytes.NewBuffer(img)
+
+			imgOrig, _, err := image.Decode(imgBuff)
 			if err != nil {
-				img = defaultArt()
+				log.Fatal(err.Error())
 			}
-		} else {
-			img = defaultArt()
+			imgOut := image.NewRGBA(image.Rect(0, 0, IMAGE_SIZE, IMAGE_SIZE))
+
+			draw.BiLinear.Scale(imgOut, imgOut.Rect, imgOrig, imgOrig.Bounds(), draw.Over, nil)
+
+			jpeg.Encode(imgBuff, imgOut, nil)
+
+			writeTxt("SongAlbum", album)
+			writeTxt("SongArtist", artist)
+			writeTxt("SongTitle", title)
+			writeJpg("AlbumArt", img)
+
 		}
-		imgBuff := bytes.NewBuffer(img)
-
-		imgOrig, _, err := image.Decode(imgBuff)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-		imgOut := image.NewRGBA(image.Rect(0, 0, IMAGE_SIZE, IMAGE_SIZE))
-
-		draw.BiLinear.Scale(imgOut, imgOut.Rect, imgOrig, imgOrig.Bounds(), draw.Over, nil)
-
-		jpeg.Encode(imgBuff, imgOut, nil)
-
-		writeTxt("SongAlbum", album)
-		writeTxt("SongArtist", artist)
-		writeTxt("SongTitle", title)
-		writeJpg("AlbumArt", img)
-
+		prevFilepath = filepath
 		time.Sleep(TIMER * time.Second)
 	}
 }
