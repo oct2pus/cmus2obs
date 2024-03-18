@@ -93,7 +93,7 @@ func main() {
 
 			imgOrig, _, err := image.Decode(imgBuff)
 			if err != nil {
-				log.Panic(err.Error())
+				log.Fatalln(err.Error())
 			}
 			imgOut := image.NewRGBA(image.Rect(0, 0, IMAGE_SIZE, IMAGE_SIZE))
 
@@ -101,7 +101,7 @@ func main() {
 
 			err = jpeg.Encode(imgBuff, imgOut, nil)
 			if err != nil {
-				log.Panic(err.Error())
+				log.Fatalln(err.Error())
 			}
 
 			writeTxt("SongAlbum", album)
