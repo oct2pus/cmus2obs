@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -97,7 +98,7 @@ func main() {
 			}
 			imgOut := image.NewRGBA(image.Rect(0, 0, IMAGE_SIZE, IMAGE_SIZE))
 
-			draw.BiLinear.Scale(imgOut, imgOut.Rect, imgOrig, imgOrig.Bounds(), draw.Over, nil)
+			draw.ApproxBiLinear.Scale(imgOut, imgOut.Rect, imgOrig, imgOrig.Bounds(), draw.Over, nil)
 
 			err = jpeg.Encode(imgBuff, imgOut, nil)
 			if err != nil {
@@ -107,7 +108,7 @@ func main() {
 			writeTxt("SongAlbum", album)
 			writeTxt("SongArtist", artist)
 			writeTxt("SongTitle", title)
-			writeJpg("AlbumArt", img)
+			writeJpg("AlbumArt", imgBuff.Bytes())
 
 		}
 		prevFilepath = path
@@ -237,14 +238,11 @@ func getCoverJpg(s string) ([]byte, error) {
 					return nil, fmt.Errorf("can't open %v", indexes[i].Name())
 				}
 				defer cover.Close()
-				info, err := indexes[i].Info()
 				if err != nil {
 					return nil, fmt.Errorf("cant stat %v; %v", indexes[i].Name(), err.Error())
 				}
-				art := make([]byte, info.Size())
 
-				cover.Read(art)
-				return art, nil
+				return io.ReadAll(cover)
 			}
 		}
 	}
